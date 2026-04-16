@@ -1,75 +1,117 @@
-# Nuxt Minimal Starter
+# OpenXart
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Anime catalog and watch client built with `Nuxt 4`, `Vite`, `Vue 3 Composition API`, `Tailwind CSS` and `UnoCSS`.
 
-## Setup
+The UI sits on top of a Nuxt server proxy that talks to the OpenAnix community API and normalizes payloads for the frontend.
 
-Make sure to install dependencies:
+## Stack
+
+- `Nuxt 4` with Vite build pipeline
+- `Vue 3` with Composition API and file-based routing
+- `Tailwind CSS` for utility styling
+- `UnoCSS` for shortcuts and additional utility ergonomics
+- `Nitro` server routes as the API proxy layer
+
+## Source API
+
+- Docs: `https://openanix.ru/anixart-api-docs/`
+- OpenAPI schema: `https://openanix.ru/anixart-api-docs/openapi.yaml`
+- Base server used by the app: `https://api-s.anixsekai.com`
+
+## Features
+
+- Home page with spotlight, quick picks and catalog presets
+- Search flow through the OpenAnix release search endpoint
+- Release detail pages with metadata, related titles and recommendations
+- Watch page with:
+  - dubber selection
+  - source selection
+  - episode list
+  - embedded iframe playback when available
+  - query-driven state in the URL
+- SSR-friendly data loading through Nuxt `useAsyncData`
+
+## Routes
+
+- `/`
+  - catalog surface
+  - search, presets, sorting and pagination
+- `/releases/:id`
+  - release metadata
+  - related and recommended titles
+- `/watch/:id`
+  - player flow
+  - query params: `dubberId`, `sourceId`, `episode`
+
+## Internal API routes
+
+Frontend pages only talk to local Nuxt server routes:
+
+- `/api/home`
+- `/api/catalog`
+- `/api/search`
+- `/api/search/*`
+- `/api/releases/:id`
+- `/api/releases/:id/player`
+
+Mirror proxy groups already added for broader OpenAnix coverage:
+
+- `/api/config/*`
+- `/api/discover/*`
+- `/api/type/*`
+- `/api/release/*`
+- `/api/related/*`
+- `/api/video/*`
+- `/api/episode/*`
+
+These routes normalize OpenAnix responses into stable frontend contracts from [`shared/types/anix.ts`](shared/types/anix.ts).
+
+## Local development
+
+Install dependencies:
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+Start dev server:
 
 ```bash
-# npm
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
-
-Build the application for production:
+Build production bundle:
 
 ```bash
-# npm
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
 ```
 
-Locally preview production build:
+Preview production build:
 
 ```bash
-# npm
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Project structure
+
+- [`app/pages`](app/pages)
+  - UI routes for catalog, release and watch pages
+- [`app/components`](app/components)
+  - shared presentation components
+- [`server/api`](server/api)
+  - Nuxt/Nitro proxy endpoints
+- [`server/utils/anix.ts`](server/utils/anix.ts)
+  - request helpers and response normalization
+- [`shared/types/anix.ts`](shared/types/anix.ts)
+  - shared API contracts between server and client
+- [`shared/constants/catalog.ts`](shared/constants/catalog.ts)
+  - preset and sort parsing helpers
+
+## Notes
+
+- The app currently uses anonymous OpenAnix endpoints that are available without user auth.
+- Player data is resolved through the endpoint chain:
+  - `/episode/:id`
+  - `/episode/:id/:episodeDubberId`
+  - `/episode/:id/:episodeDubberId/:sourceId`
+- Some releases exist in the catalog but may have no playable episode chain yet. The watch page handles that case explicitly.

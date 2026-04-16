@@ -16,9 +16,9 @@ import type {
 } from '~~/shared/types/anix'
 
 useSeoMeta({
-  title: 'Home',
+  title: 'OpenXart',
   description:
-    'Browse the anime catalog, switch feed presets and search releases through the OpenXart home page.',
+    'Browse anime releases, search the OpenAnix catalog, open release pages and continue into the watch flow.',
 })
 
 const route = useRoute()
@@ -228,8 +228,8 @@ async function goToPage(page: number) {
             Browse the catalog, pivot by feed, then drill into the watch flow.
           </h2>
           <p class="mt-4 max-w-2xl text-sm leading-7 text-muted sm:text-base">
-            Stage two turns the landing page into an actual catalog surface:
-            searchable, filterable and URL-driven.
+            Search, filter, open release pages and jump straight into the player
+            route without leaving the same Nuxt application shell.
           </p>
         </template>
 
@@ -294,10 +294,10 @@ async function goToPage(page: number) {
       <aside class="grid gap-4">
         <div class="stack-shell p-5">
           <p class="tone-label">Current stage</p>
-          <h3 class="mt-4 text-2xl font-semibold text-ink">Catalog surface</h3>
+          <h3 class="mt-4 text-2xl font-semibold text-ink">Release + watch flow</h3>
           <p class="mt-3 text-sm leading-6 text-muted">
-            Home page now owns search, preset switching and catalog sorting. The
-            route query is the single source of truth for the current feed.
+            The app now covers the full browse path: catalog search, detail page,
+            related titles and query-driven episode playback.
           </p>
         </div>
 

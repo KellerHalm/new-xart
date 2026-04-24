@@ -4,6 +4,7 @@ import type {
   EpisodeSource,
   ReleaseCard,
   ReleaseDetail,
+  ReleaseUserState,
   SpotlightBanner,
 } from '~~/shared/types/anix'
 
@@ -97,6 +98,7 @@ export function normalizeReleaseDetail(input: RawRecord): ReleaseDetail {
     watchingCount: getNumber(input.watching_count),
     planCount: getNumber(input.plan_count),
     completedCount: getNumber(input.completed_count),
+    userState: normalizeReleaseUserState(input),
     related: toRecordArray(input.related_releases).map(normalizeReleaseCard),
     recommended: toRecordArray(input.recommended_releases).map(normalizeReleaseCard),
   }
@@ -140,6 +142,18 @@ export function normalizeEpisode(input: RawRecord): EpisodeItem {
   }
 }
 
+function normalizeReleaseUserState(input: RawRecord): ReleaseUserState {
+  return {
+    favorite: getBoolean(input.is_favorite),
+    listStatus: extractListStatus(input.profile_list_status),
+    vote: extractVoteValue(input.your_vote),
+    lastViewEpisode: getPositiveNumber(input.last_view_episode),
+    lastViewTimestamp: getPositiveNumber(input.last_view_timestamp),
+    notificationsEnabled: getBoolean(input.is_release_type_notifications_enabled),
+    viewed: getBoolean(input.is_viewed),
+  }
+}
+
 function extractNamedValue(input: unknown) {
   if (!input || typeof input !== 'object') {
     return null
@@ -163,6 +177,37 @@ function roundScore(value: number) {
   return Number.parseFloat(value.toFixed(1))
 }
 
+function extractListStatus(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value
+  }
+
+  const record = toRecord(value)
+
+  return (
+    getPositiveNumber(record.id) ??
+    getPositiveNumber(record.status_id) ??
+    getPositiveNumber(record.status) ??
+    getPositiveNumber(record.value) ??
+    null
+  )
+}
+
+function extractVoteValue(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value
+  }
+
+  const record = toRecord(value)
+
+  return (
+    getPositiveNumber(record.vote) ??
+    getPositiveNumber(record.value) ??
+    getPositiveNumber(record.id) ??
+    null
+  )
+}
+
 function getString(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
@@ -177,6 +222,10 @@ function getNumber(value: unknown) {
 
 function getOptionalNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function getPositiveNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
 }
 
 function getBoolean(value: unknown) {

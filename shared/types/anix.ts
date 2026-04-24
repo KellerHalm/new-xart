@@ -68,8 +68,19 @@ export interface ReleaseDetail extends ReleaseCard {
   watchingCount: number
   planCount: number
   completedCount: number
+  userState: ReleaseUserState
   related: ReleaseCard[]
   recommended: ReleaseCard[]
+}
+
+export interface ReleaseUserState {
+  favorite: boolean
+  listStatus: number | null
+  vote: number | null
+  lastViewEpisode: number | null
+  lastViewTimestamp: number | null
+  notificationsEnabled: boolean
+  viewed: boolean
 }
 
 export interface Dubber {

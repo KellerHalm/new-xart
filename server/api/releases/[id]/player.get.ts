@@ -1,10 +1,10 @@
 import type { PlayerPayload } from '~~/shared/types/anix'
 import {
-  anixRequest,
   normalizeDubber,
   normalizeEpisode,
   normalizeSource,
 } from '../../../utils/anix'
+import { anixMirrorRequest } from '../../../utils/mirror'
 
 interface DubberResponse {
   code: number
@@ -39,7 +39,10 @@ export default defineEventHandler(async (event): Promise<PlayerPayload> => {
     10,
   )
 
-  const dubberResponse = await anixRequest<DubberResponse>(`/episode/${id}`)
+  const dubberResponse = (await anixMirrorRequest(
+    event,
+    `/episode/${id}`,
+  )) as DubberResponse
   const dubbers = dubberResponse.types.map(normalizeDubber)
   const activeDubberId =
     dubbers.find((item) => item.id === requestedDubberId)?.id || dubbers[0]?.id || null
@@ -56,9 +59,10 @@ export default defineEventHandler(async (event): Promise<PlayerPayload> => {
     }
   }
 
-  const sourceResponse = await anixRequest<SourceResponse>(
+  const sourceResponse = (await anixMirrorRequest(
+    event,
     `/episode/${id}/${activeDubberId}`,
-  )
+  )) as SourceResponse
   const sources = sourceResponse.sources.map(normalizeSource)
   const activeSourceId =
     sources.find((item) => item.id === requestedSourceId)?.id || sources[0]?.id || null
@@ -75,9 +79,10 @@ export default defineEventHandler(async (event): Promise<PlayerPayload> => {
     }
   }
 
-  const episodeResponse = await anixRequest<EpisodeResponse>(
+  const episodeResponse = (await anixMirrorRequest(
+    event,
     `/episode/${id}/${activeDubberId}/${activeSourceId}`,
-  )
+  )) as EpisodeResponse
   const episodes = episodeResponse.episodes.map(normalizeEpisode)
   const activeEpisodePosition =
     episodes.find((item) => item.position === requestedEpisodePosition)?.position ||

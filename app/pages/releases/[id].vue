@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { ApiCodeResponse, RawRecord, ReleaseDetail } from '~~/shared/types/anix'
+import type { ReleaseDetail } from '~~/shared/types/anix'
 
 const route = useRoute()
 const releaseId = Number.parseInt(String(route.params.id), 10)
-const session = useAnixSession()
 
 if (!Number.isFinite(releaseId)) {
   throw createError({
@@ -11,8 +10,6 @@ if (!Number.isFinite(releaseId)) {
     statusMessage: 'Release not found',
   })
 }
-
-await session.ensureProfileLoaded()
 
 const {
   data: release,
@@ -25,23 +22,6 @@ const {
 )
 
 const watchPath = computed(() => `/watch/${releaseId}`)
-const isAuthenticated = computed(() => session.isAuthenticated.value)
-
-const listOptions = [
-  { value: 1, label: 'Watching' },
-  { value: 2, label: 'Plan' },
-  { value: 3, label: 'Completed' },
-  { value: 4, label: 'On hold' },
-  { value: 5, label: 'Dropped' },
-]
-
-const favoriteActive = ref(false)
-const activeList = ref<number | null>(null)
-const activeVote = ref<number | null>(null)
-const favoritePending = ref(false)
-const listPending = ref(false)
-const votePending = ref(false)
-const actionMessage = ref<string | null>(null)
 
 const badges = computed(() =>
   [
@@ -85,154 +65,6 @@ useSeoMeta({
   ogDescription: () => release.value?.description || '',
   ogImage: () => release.value?.poster || '',
 })
-
-async function toggleFavorite() {
-  favoritePending.value = true
-  actionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      favoriteActive.value
-        ? `/api/favorite/delete/${releaseId}`
-        : `/api/favorite/add/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      actionMessage.value = 'Favorite action requires a valid OpenAnix session.'
-      return
-    }
-
-    favoriteActive.value = !favoriteActive.value
-    actionMessage.value = favoriteActive.value
-      ? 'Release added to favorites.'
-      : 'Release removed from favorites.'
-  } catch (error: any) {
-    actionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to update favorites.'
-  } finally {
-    favoritePending.value = false
-  }
-}
-
-async function setList(list: number) {
-  listPending.value = true
-  actionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/profile/list/add/${list}/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      actionMessage.value = 'List actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeList.value = list
-    actionMessage.value = `Release moved to ${resolveListLabel(list)}.`
-  } catch (error: any) {
-    actionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to update release list.'
-  } finally {
-    listPending.value = false
-  }
-}
-
-async function clearList() {
-  if (!activeList.value) {
-    return
-  }
-
-  listPending.value = true
-  actionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/profile/list/delete/${activeList.value}/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      actionMessage.value = 'List actions require a valid OpenAnix session.'
-      return
-    }
-
-    actionMessage.value = `Release removed from ${resolveListLabel(activeList.value)}.`
-    activeList.value = null
-  } catch (error: any) {
-    actionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to clear release list.'
-  } finally {
-    listPending.value = false
-  }
-}
-
-async function setVote(vote: number) {
-  votePending.value = true
-  actionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/release/vote/add/${releaseId}/${vote}`,
-    )
-
-    if (getCode(response) === 401) {
-      actionMessage.value = 'Vote actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeVote.value = vote
-    actionMessage.value = `Release rated ${vote}/5.`
-  } catch (error: any) {
-    actionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to set release vote.'
-  } finally {
-    votePending.value = false
-  }
-}
-
-async function clearVote() {
-  votePending.value = true
-  actionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/release/vote/delete/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      actionMessage.value = 'Vote actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeVote.value = null
-    actionMessage.value = 'Release vote cleared.'
-  } catch (error: any) {
-    actionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to clear release vote.'
-  } finally {
-    votePending.value = false
-  }
-}
-
-function resolveListLabel(value: number) {
-  return listOptions.find((item) => item.value === value)?.label || `List ${value}`
-}
-
-function getCode(value: unknown) {
-  return typeof value === 'object' && value && typeof (value as RawRecord).code === 'number'
-    ? ((value as RawRecord).code as number)
-    : null
-}
 
 function formatAgeRating(value: number | null | undefined) {
   if (!value) {
@@ -410,91 +242,12 @@ function formatEpisodes(value: ReleaseDetail | null | undefined) {
             </NuxtLink>
           </div>
 
-          <div class="mt-8 rounded-[1.75rem] border border-ink/10 bg-white/60 p-5">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                  Library controls
-                </p>
-                <p class="mt-2 text-sm leading-6 text-muted">
-                  {{ isAuthenticated ? 'Mutation endpoints are live for the active session.' : 'Sign in to persist favorite, list and vote actions.' }}
-                </p>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                <button
-                  class="ring-link"
-                  type="button"
-                  :disabled="favoritePending"
-                  @click="toggleFavorite()"
-                >
-                  {{
-                    favoritePending
-                      ? 'Saving...'
-                      : favoriteActive
-                        ? 'Unfavorite'
-                        : 'Favorite'
-                  }}
-                </button>
-                <button
-                  class="ring-link"
-                  type="button"
-                  :disabled="votePending || activeVote === null"
-                  @click="clearVote()"
-                >
-                  Clear vote
-                </button>
-                <button
-                  class="ring-link"
-                  type="button"
-                  :disabled="listPending || activeList === null"
-                  @click="clearList()"
-                >
-                  Clear list
-                </button>
-              </div>
-            </div>
-
-            <div class="mt-5 flex flex-wrap gap-2">
-              <button
-                v-for="item in listOptions"
-                :key="`list-${item.value}`"
-                type="button"
-                class="rounded-full border px-4 py-2 text-sm font-medium transition duration-200"
-                :class="
-                  activeList === item.value
-                    ? 'border-accent bg-accent text-white'
-                    : 'border-ink/10 bg-white/70 text-ink hover:border-ink/20 hover:bg-white'
-                "
-                :disabled="listPending"
-                @click="setList(item.value)"
-              >
-                {{ item.label }}
-              </button>
-            </div>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-              <button
-                v-for="vote in 5"
-                :key="`vote-${vote}`"
-                type="button"
-                class="rounded-full border px-4 py-2 text-sm font-medium transition duration-200"
-                :class="
-                  activeVote === vote
-                    ? 'border-ink bg-ink text-white'
-                    : 'border-ink/10 bg-white/70 text-ink hover:border-ink/20 hover:bg-white'
-                "
-                :disabled="votePending"
-                @click="setVote(vote)"
-              >
-                {{ vote }}/5
-              </button>
-            </div>
-
-            <p v-if="actionMessage" class="mt-4 text-sm text-muted">
-              {{ actionMessage }}
-            </p>
-          </div>
+          <ReleaseLibraryControls
+            class="mt-8"
+            :release-id="release.id"
+            :initial-state="release.userState"
+            authed-description="Mutation endpoints are live for the active session."
+          />
         </article>
       </section>
 

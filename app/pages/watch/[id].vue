@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { ApiCodeResponse, EpisodeItem, PlayerPayload, RawRecord, ReleaseDetail } from '~~/shared/types/anix'
+import type { EpisodeItem, PlayerPayload, ReleaseDetail } from '~~/shared/types/anix'
 
 const route = useRoute()
 const releaseId = Number.parseInt(String(route.params.id), 10)
-const session = useAnixSession()
 
 if (!Number.isFinite(releaseId)) {
   throw createError({
@@ -11,8 +10,6 @@ if (!Number.isFinite(releaseId)) {
     statusMessage: 'Release not found',
   })
 }
-
-await session.ensureProfileLoaded()
 
 interface WatchRouteState {
   dubberId: number | null
@@ -25,25 +22,6 @@ const routeState = computed<WatchRouteState>(() => ({
   sourceId: parsePositiveInt(route.query.sourceId),
   episode: parsePositiveInt(route.query.episode),
 }))
-const isAuthenticated = computed(() => session.isAuthenticated.value)
-
-const listOptions = [
-  { value: 1, label: 'Watching' },
-  { value: 2, label: 'Plan' },
-  { value: 3, label: 'Completed' },
-  { value: 4, label: 'On hold' },
-  { value: 5, label: 'Dropped' },
-]
-
-const favoriteActive = ref(false)
-const activeList = ref<number | null>(1)
-const activeVote = ref<number | null>(null)
-const watchedEpisodeMap = ref<Record<string, boolean>>({})
-const historyTouchedMap = ref<Record<string, boolean>>({})
-const releaseActionPending = ref(false)
-const episodeActionPending = ref(false)
-const releaseActionMessage = ref<string | null>(null)
-const episodeActionMessage = ref<string | null>(null)
 
 const playerKey = computed(
   () =>
@@ -102,30 +80,12 @@ const currentEpisode = computed<EpisodeItem | null>(
     player.value?.episodes[0] ||
     null,
 )
-const currentEpisodeKey = computed(() => {
-  if (!currentEpisode.value?.position || !player.value?.activeSourceId) {
-    return null
-  }
-
-  return `${releaseId}:${player.value.activeSourceId}:${currentEpisode.value.position}`
-})
-const isEpisodeMarkedWatched = computed(() => {
-  if (!currentEpisode.value) {
+const initialHistoryActive = computed(() => {
+  if (!currentEpisode.value?.position) {
     return false
   }
 
-  if (currentEpisodeKey.value && currentEpisodeKey.value in watchedEpisodeMap.value) {
-    return watchedEpisodeMap.value[currentEpisodeKey.value]
-  }
-
-  return currentEpisode.value.watched
-})
-const hasHistoryTouch = computed(() => {
-  if (!currentEpisodeKey.value) {
-    return false
-  }
-
-  return Boolean(historyTouchedMap.value[currentEpisodeKey.value])
+  return release.value?.userState.lastViewEpisode === currentEpisode.value.position
 })
 
 const hasPlayableStream = computed(
@@ -334,264 +294,6 @@ function extractHostname(value: string | null | undefined) {
     return null
   }
 }
-
-async function toggleFavorite() {
-  releaseActionPending.value = true
-  releaseActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      favoriteActive.value
-        ? `/api/favorite/delete/${releaseId}`
-        : `/api/favorite/add/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      releaseActionMessage.value = 'Favorite action requires a valid OpenAnix session.'
-      return
-    }
-
-    favoriteActive.value = !favoriteActive.value
-    releaseActionMessage.value = favoriteActive.value
-      ? 'Release added to favorites.'
-      : 'Release removed from favorites.'
-  } catch (error: any) {
-    releaseActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to update favorites.'
-  } finally {
-    releaseActionPending.value = false
-  }
-}
-
-async function setList(list: number) {
-  releaseActionPending.value = true
-  releaseActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/profile/list/add/${list}/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      releaseActionMessage.value = 'List actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeList.value = list
-    releaseActionMessage.value = `Release moved to ${resolveListLabel(list)}.`
-  } catch (error: any) {
-    releaseActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to update release list.'
-  } finally {
-    releaseActionPending.value = false
-  }
-}
-
-async function setVote(vote: number) {
-  releaseActionPending.value = true
-  releaseActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/release/vote/add/${releaseId}/${vote}`,
-    )
-
-    if (getCode(response) === 401) {
-      releaseActionMessage.value = 'Vote actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeVote.value = vote
-    releaseActionMessage.value = `Release rated ${vote}/5.`
-  } catch (error: any) {
-    releaseActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to set release vote.'
-  } finally {
-    releaseActionPending.value = false
-  }
-}
-
-async function clearVote() {
-  releaseActionPending.value = true
-  releaseActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/release/vote/delete/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      releaseActionMessage.value = 'Vote actions require a valid OpenAnix session.'
-      return
-    }
-
-    activeVote.value = null
-    releaseActionMessage.value = 'Release vote cleared.'
-  } catch (error: any) {
-    releaseActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to clear release vote.'
-  } finally {
-    releaseActionPending.value = false
-  }
-}
-
-async function markEpisodeWatched() {
-  if (!currentEpisode.value?.position || !player.value?.activeSourceId) {
-    return
-  }
-
-  episodeActionPending.value = true
-  episodeActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/episode/watch/${releaseId}/${player.value.activeSourceId}/${currentEpisode.value.position}`,
-    )
-
-    if (getCode(response) === 401) {
-      episodeActionMessage.value = 'Watched state requires a valid OpenAnix session.'
-      return
-    }
-
-    if (currentEpisodeKey.value) {
-      watchedEpisodeMap.value = {
-        ...watchedEpisodeMap.value,
-        [currentEpisodeKey.value]: true,
-      }
-    }
-
-    episodeActionMessage.value = 'Episode marked as watched.'
-  } catch (error: any) {
-    episodeActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to mark episode as watched.'
-  } finally {
-    episodeActionPending.value = false
-  }
-}
-
-async function unmarkEpisodeWatched() {
-  if (!currentEpisode.value?.position || !player.value?.activeSourceId) {
-    return
-  }
-
-  episodeActionPending.value = true
-  episodeActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/episode/unwatch/${releaseId}/${player.value.activeSourceId}/${currentEpisode.value.position}`,
-    )
-
-    if (getCode(response) === 401) {
-      episodeActionMessage.value = 'Watched state requires a valid OpenAnix session.'
-      return
-    }
-
-    if (currentEpisodeKey.value) {
-      watchedEpisodeMap.value = {
-        ...watchedEpisodeMap.value,
-        [currentEpisodeKey.value]: false,
-      }
-    }
-
-    episodeActionMessage.value = 'Episode marked as unwatched.'
-  } catch (error: any) {
-    episodeActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to clear watched state.'
-  } finally {
-    episodeActionPending.value = false
-  }
-}
-
-async function addEpisodeToHistory() {
-  if (!currentEpisode.value?.position || !player.value?.activeSourceId) {
-    return
-  }
-
-  episodeActionPending.value = true
-  episodeActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/history/add/${releaseId}/${player.value.activeSourceId}/${currentEpisode.value.position}`,
-    )
-
-    if (getCode(response) === 401) {
-      episodeActionMessage.value = 'History actions require a valid OpenAnix session.'
-      return
-    }
-
-    if (currentEpisodeKey.value) {
-      historyTouchedMap.value = {
-        ...historyTouchedMap.value,
-        [currentEpisodeKey.value]: true,
-      }
-    }
-
-    episodeActionMessage.value = 'Episode added to history.'
-  } catch (error: any) {
-    episodeActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to add episode to history.'
-  } finally {
-    episodeActionPending.value = false
-  }
-}
-
-async function removeReleaseFromHistory() {
-  episodeActionPending.value = true
-  episodeActionMessage.value = null
-
-  try {
-    const response = await session.authorizedFetch<ApiCodeResponse>(
-      `/api/history/delete/${releaseId}`,
-    )
-
-    if (getCode(response) === 401) {
-      episodeActionMessage.value = 'History actions require a valid OpenAnix session.'
-      return
-    }
-
-    if (currentEpisodeKey.value) {
-      historyTouchedMap.value = {
-        ...historyTouchedMap.value,
-        [currentEpisodeKey.value]: false,
-      }
-    }
-
-    episodeActionMessage.value = 'Release removed from history.'
-  } catch (error: any) {
-    episodeActionMessage.value =
-      error?.data?.statusMessage ||
-      error?.message ||
-      'Failed to remove release from history.'
-  } finally {
-    episodeActionPending.value = false
-  }
-}
-
-function resolveListLabel(value: number) {
-  return listOptions.find((item) => item.value === value)?.label || `List ${value}`
-}
-
-function getCode(value: unknown) {
-  return typeof value === 'object' && value && typeof (value as RawRecord).code === 'number'
-    ? ((value as RawRecord).code as number)
-    : null
-}
 </script>
 
 <template>
@@ -687,83 +389,11 @@ function getCode(value: unknown) {
             </article>
           </div>
 
-          <div class="mt-8 rounded-[1.75rem] border border-ink/10 bg-white/60 p-5">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                  Release controls
-                </p>
-                <p class="mt-2 text-sm leading-6 text-muted">
-                  {{ isAuthenticated ? 'Library mutations are available for the active session.' : 'Sign in to persist release actions.' }}
-                </p>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                <button
-                  class="ring-link"
-                  type="button"
-                  :disabled="releaseActionPending"
-                  @click="toggleFavorite()"
-                >
-                  {{
-                    releaseActionPending
-                      ? 'Saving...'
-                      : favoriteActive
-                        ? 'Unfavorite'
-                        : 'Favorite'
-                  }}
-                </button>
-                <button
-                  class="ring-link"
-                  type="button"
-                  :disabled="releaseActionPending || activeVote === null"
-                  @click="clearVote()"
-                >
-                  Clear vote
-                </button>
-              </div>
-            </div>
-
-            <div class="mt-5 flex flex-wrap gap-2">
-              <button
-                v-for="item in listOptions"
-                :key="`watch-list-${item.value}`"
-                type="button"
-                class="rounded-full border px-4 py-2 text-sm font-medium transition duration-200"
-                :class="
-                  activeList === item.value
-                    ? 'border-accent bg-accent text-white'
-                    : 'border-ink/10 bg-white/70 text-ink hover:border-ink/20 hover:bg-white'
-                "
-                :disabled="releaseActionPending"
-                @click="setList(item.value)"
-              >
-                {{ item.label }}
-              </button>
-            </div>
-
-            <div class="mt-4 flex flex-wrap gap-2">
-              <button
-                v-for="vote in 5"
-                :key="`watch-vote-${vote}`"
-                type="button"
-                class="rounded-full border px-4 py-2 text-sm font-medium transition duration-200"
-                :class="
-                  activeVote === vote
-                    ? 'border-ink bg-ink text-white'
-                    : 'border-ink/10 bg-white/70 text-ink hover:border-ink/20 hover:bg-white'
-                "
-                :disabled="releaseActionPending"
-                @click="setVote(vote)"
-              >
-                {{ vote }}/5
-              </button>
-            </div>
-
-            <p v-if="releaseActionMessage" class="mt-4 text-sm text-muted">
-              {{ releaseActionMessage }}
-            </p>
-          </div>
+          <ReleaseLibraryControls
+            class="mt-8"
+            :release-id="release.id"
+            :initial-state="release.userState"
+          />
         </article>
 
         <aside class="stack-shell p-5 sm:p-6">
@@ -943,64 +573,14 @@ function getCode(value: unknown) {
                 </span>
               </div>
 
-              <div class="mt-6 rounded-[1.75rem] border border-ink/10 bg-white/55 p-5">
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-muted">
-                      Episode controls
-                    </p>
-                    <p class="mt-2 text-sm leading-6 text-muted">
-                      {{ isAuthenticated ? 'Mark watched and sync history for the active episode.' : 'Sign in to persist watched state and history.' }}
-                    </p>
-                  </div>
-
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      class="ring-link"
-                      type="button"
-                      :disabled="episodeActionPending"
-                      @click="isEpisodeMarkedWatched ? unmarkEpisodeWatched() : markEpisodeWatched()"
-                    >
-                      {{
-                        episodeActionPending
-                          ? 'Saving...'
-                          : isEpisodeMarkedWatched
-                            ? 'Mark unwatched'
-                            : 'Mark watched'
-                      }}
-                    </button>
-                    <button
-                      class="ring-link"
-                      type="button"
-                      :disabled="episodeActionPending"
-                      @click="addEpisodeToHistory()"
-                    >
-                      Add history
-                    </button>
-                    <button
-                      class="ring-link"
-                      type="button"
-                      :disabled="episodeActionPending"
-                      @click="removeReleaseFromHistory()"
-                    >
-                      Clear history
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-4 flex flex-wrap gap-2 text-sm text-muted">
-                  <span class="rounded-full border border-ink/10 bg-white/60 px-3 py-2">
-                    {{ isEpisodeMarkedWatched ? 'Watched' : 'Not watched' }}
-                  </span>
-                  <span class="rounded-full border border-ink/10 bg-white/60 px-3 py-2">
-                    {{ hasHistoryTouch ? 'History touched' : 'History idle' }}
-                  </span>
-                </div>
-
-                <p v-if="episodeActionMessage" class="mt-4 text-sm text-muted">
-                  {{ episodeActionMessage }}
-                </p>
-              </div>
+              <EpisodeProgressControls
+                class="mt-6"
+                :release-id="release.id"
+                :source-id="player.activeSourceId"
+                :episode-position="currentEpisode?.position || null"
+                :initial-watched="currentEpisode?.watched || false"
+                :initial-history-active="initialHistoryActive"
+              />
             </div>
           </div>
 

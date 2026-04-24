@@ -1,4 +1,5 @@
-import { anixRequest, normalizeReleaseDetail } from '../../utils/anix'
+import { normalizeReleaseDetail } from '../../utils/anix'
+import { anixMirrorRequest } from '../../utils/mirror'
 
 interface ReleaseResponse {
   code: number
@@ -15,11 +16,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const response = await anixRequest<ReleaseResponse>(`/release/${id}`, {
+  const response = (await anixMirrorRequest(event, `/release/${id}`, {
     query: {
       extended_mode: true,
     },
-  })
+  })) as ReleaseResponse
 
   return normalizeReleaseDetail(response.release)
 })

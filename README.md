@@ -56,7 +56,13 @@ Frontend pages only talk to local Nuxt server routes:
 
 Mirror proxy groups already added for broader OpenAnix coverage:
 
+- `/api/auth/*`
 - `/api/config/*`
+- `/api/notification/*`
+- `/api/collection/*`
+- `/api/collectionFavorite/*`
+- `/api/collectionMy/*`
+- `/api/filter/*`
 - `/api/discover/*`
 - `/api/type/*`
 - `/api/release/*`
@@ -74,6 +80,8 @@ Mirror proxy groups already added for broader OpenAnix coverage:
 These routes normalize OpenAnix responses into stable frontend contracts from [`shared/types/anix.ts`](shared/types/anix.ts).
 
 Part of the mirrored surface is auth-gated upstream, so some routes intentionally preserve upstream `401`, `404`, or empty `200` responses when called anonymously.
+
+Protected proxy routes also forward auth context from `token` query param, `Authorization: Bearer <token>`, `x-anix-token`, `x-auth-token`, or common token cookies.
 
 ## Local development
 

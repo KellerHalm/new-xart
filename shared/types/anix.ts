@@ -111,3 +111,24 @@ export interface PlayerPayload {
   sources: EpisodeSource[]
   episodes: EpisodeItem[]
 }
+
+export type RawRecord = Record<string, unknown>
+
+export interface ApiCodeResponse extends RawRecord {
+  code?: number
+}
+
+export interface ApiPagedResponse<T = RawRecord> extends ApiCodeResponse {
+  content?: T[]
+  total_count?: number
+  total_page_count?: number
+  current_page?: number
+}
+
+export interface AuthProfile extends RawRecord {
+  id?: number
+  login?: string
+  avatar?: string
+  status?: string
+  profile_cover?: string
+}

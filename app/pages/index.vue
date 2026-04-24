@@ -288,16 +288,25 @@ async function goToPage(page: number) {
           <a class="ring-link" href="#catalog">
             Open catalog
           </a>
+          <NuxtLink class="ring-link" to="/auth">
+            Auth workspace
+          </NuxtLink>
+          <NuxtLink class="ring-link" to="/collections">
+            Collections
+          </NuxtLink>
+          <NuxtLink class="ring-link" to="/notifications">
+            Notifications
+          </NuxtLink>
         </div>
       </article>
 
       <aside class="grid gap-4">
         <div class="stack-shell p-5">
           <p class="tone-label">Current stage</p>
-          <h3 class="mt-4 text-2xl font-semibold text-ink">Release + watch flow</h3>
+          <h3 class="mt-4 text-2xl font-semibold text-ink">Browse + account workspace</h3>
           <p class="mt-3 text-sm leading-6 text-muted">
-            The app now covers the full browse path: catalog search, detail page,
-            related titles and query-driven episode playback.
+            The app now covers catalog search, release and watch flow, plus
+            session-driven pages for auth, collections and notifications.
           </p>
         </div>
 

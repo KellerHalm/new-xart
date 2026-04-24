@@ -63,8 +63,17 @@ Mirror proxy groups already added for broader OpenAnix coverage:
 - `/api/related/*`
 - `/api/video/*`
 - `/api/episode/*`
+- `/api/profile/*`
+- `/api/favorite/*`
+- `/api/history/*`
+- `/api/channel/*`
+- `/api/role/*`
+- `/api/export/*`
+- `/api/achivement/*`
 
 These routes normalize OpenAnix responses into stable frontend contracts from [`shared/types/anix.ts`](shared/types/anix.ts).
+
+Part of the mirrored surface is auth-gated upstream, so some routes intentionally preserve upstream `401`, `404`, or empty `200` responses when called anonymously.
 
 ## Local development
 

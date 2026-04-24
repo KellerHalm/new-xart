@@ -66,6 +66,31 @@ export function requireRouteSegment(value: string | undefined, label: string) {
   return normalized
 }
 
+export function toObjectRecord(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {} as Record<string, unknown>
+  }
+
+  return value as Record<string, unknown>
+}
+
+export function pickDefinedValues(
+  source: Record<string, unknown>,
+  keys: string[],
+) {
+  const result: Record<string, unknown> = {}
+
+  for (const key of keys) {
+    const value = source[key]
+
+    if (value !== undefined && value !== null && value !== '') {
+      result[key] = value
+    }
+  }
+
+  return result
+}
+
 export function getOptionalIntegerQuery(
   query: Record<string, unknown>,
   keys: string[],

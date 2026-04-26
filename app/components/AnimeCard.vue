@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import type { ReleaseCard } from '~~/shared/types/anix'
+import type { ReleaseCard, ReleaseUserState } from '~~/shared/types/anix'
 
 defineProps<{
   release: ReleaseCard
+  userState?: ReleaseUserState | null
 }>()
 </script>
 
 <template>
-  <NuxtLink :to="`/releases/${release.id}`" class="group block h-full">
-    <article class="stack-shell h-full overflow-hidden">
+  <article class="stack-shell h-full overflow-hidden">
+    <NuxtLink :to="`/releases/${release.id}`" class="group block">
       <div class="relative aspect-[3/4] overflow-hidden bg-ink/5">
         <img
           :src="release.poster"
@@ -92,6 +93,17 @@ defineProps<{
           </div>
         </div>
       </div>
-    </article>
-  </NuxtLink>
+    </NuxtLink>
+
+    <ReleaseLibraryControls
+      class="border-t border-ink/10"
+      :release-id="release.id"
+      :initial-state="userState"
+      compact
+      :show-clear-list="false"
+      title="Quick actions"
+      authed-description="Update favorite, list and vote state without leaving the feed."
+      guest-description="Sign in to use quick actions from the card."
+    />
+  </article>
 </template>

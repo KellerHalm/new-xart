@@ -83,6 +83,10 @@ export interface ReleaseUserState {
   viewed: boolean
 }
 
+export interface ReleaseUserStateSummaryResponse {
+  states: Record<string, ReleaseUserState>
+}
+
 export interface Dubber {
   id: number
   name: string

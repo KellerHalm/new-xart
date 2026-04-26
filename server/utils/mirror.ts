@@ -148,7 +148,7 @@ function hasTokenQuery(query: Record<string, unknown>) {
   return typeof value === 'string' && value.length
 }
 
-function resolveToken(event: any) {
+export function resolveToken(event: any) {
   const query = getQuery(event)
   const queryToken = firstStringValue(query.token)
 
